@@ -1,0 +1,19 @@
+{
+  "name": "timetraveler",
+  "version": "0.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gtriggiano/timetraveler.git"
+  },
+  "author": "Giacomo Triggiano <giacomotriggiano@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/gtriggiano/timetraveler/issues"
+  },
+  "homepage": "https://github.com/gtriggiano/timetraveler#readme"
+}
