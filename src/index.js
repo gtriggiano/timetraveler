@@ -99,8 +99,9 @@ function Timetraveler (customSettings) {
 const defaultSettings = {
   fromEvent: 0,
   batchSize: 1000,
+  eventStoreCredentials: grpc.credentials.createInsecure(),
   onEvent: () => Promise.resolve(),
-  eventStoreCredentials: grpc.credentials.createInsecure()
+  whitelistedStreams: false
 }
 
 function validateSettings (settings) {
