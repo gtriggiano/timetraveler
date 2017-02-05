@@ -15,5 +15,10 @@
   "bugs": {
     "url": "https://github.com/gtriggiano/timetraveler/issues"
   },
-  "homepage": "https://github.com/gtriggiano/timetraveler#readme"
+  "homepage": "https://github.com/gtriggiano/timetraveler#readme",
+  "dependencies": {
+    "debug": "^2.6.0",
+    "eventemitter3": "^2.0.2",
+    "grpc": "^1.1.1"
+  }
 }
