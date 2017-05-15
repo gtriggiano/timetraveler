@@ -50,7 +50,7 @@ function Timemachine ({
     })
   }
   function _subscribe () {
-    _subscription = _esClient.catchUpStoreStream({
+    _subscription = _esClient.catchUpWithStore({
       fromEventId: _lastFetchedEventId
     })
     _subscription.on('data', (event) => {
