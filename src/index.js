@@ -2,53 +2,57 @@ import D from 'debug'
 import grpc from 'grpc'
 import EventEmitter from 'eventemitter3'
 
-import Queue from 'Queue'
-import Timemachine from 'Timemachine'
-import Timelogger from 'Timelogger'
+import EventProcessingQueue from './EventProcessingQueue'
+import Timemachine from './Timemachine'
 
 function Timetraveler (customSettings) {
-  const settings = {...defaultSettings, ...customSettings}
+  const settings = {...Timetraveler.defaultSettings, ...customSettings}
   validateSettings(settings)
   const debug = D('timetraveler')
 
   const traveler = new EventEmitter()
 
   const {
-    fromEvent,
+    fromEventId,
     batchSize,
+    hwm,
+    lwm,
     eventStoreAddress,
     eventStoreCredentials,
-    onEvent,
-    whitelistedStreams
+    eventHandler
   } = settings
 
-  let _traveling = false
-  let _lastFetchedEventId = fromEvent
+  const state = {
+    lwm,
+    hwm,
+    travelling: false,
+    subscribed: true,
+    lastFetchedEvent: null,
+    lastProcessedEvent: null
+  }
 
-  let _fetchLogger = Timelogger(`loading of events of day`)
-  let _processLogger = Timelogger(`processing of events of day`)
-  let _queue = Queue({
-    hwm: 500,
-    processor: (event) => Promise.resolve(onEvent(event))
+  let _queue = EventProcessingQueue({lwm, hwm, eventHandler})
+
+  const onStateUpdated = () => traveler.emit('stats', {
+    ...state,
+    queueSize: _queue.size
   })
+
   _queue.on('processed:event', (event) => {
-    _processLogger.log(event.stored)
+    state.lastProcessedEvent = event
+    onStateUpdated()
   })
   _queue.on('processing:error', (event, error) => {
-    console.error()
-    console.error(`Error processing event:`)
-    console.error(JSON.stringify(event, null, 2))
-    console.error(error)
-    console.error()
+    traveler.emit('eventProcessingError', event, error)
   })
-  _queue.on('hwm:alert', () => {
+  _queue.on('hwm', () => {
     console.log()
     console.log(`QUEUE HIGH WATER MARK REACHED`)
     console.log()
   })
-  _queue.on('hwm:calm', () => {
+  _queue.on('lwm', () => {
     console.log()
-    console.log(`QUEUE IS NO MORE OVER HIGH WATER MARK THRESHOLD`)
+    console.log(`QUEUE LOW WATER MARK REACHED`)
     console.log()
   })
   _queue.on('drain', () => {
@@ -56,37 +60,44 @@ function Timetraveler (customSettings) {
     console.log(`DRAIN`)
     console.log()
   })
+
   let _timemachine = Timemachine({
     eventStoreAddress,
     eventStoreCredentials,
-    whitelistedStreams,
     batchSize
   })
   _timemachine.on('event', (event) => {
-    _lastFetchedEventId = event.id
-    _fetchLogger.log(event.stored)
+    state.lastFetchedEvent = event
     _queue.add(event)
+    onStateUpdated()
   })
-  _timemachine.on('subscribing', () => {
-    console.log('SUBSCRIBED TO LIVE EVENTS')
+  _timemachine.on('subscribed', () => {
+    state.subscribed = true
+    onStateUpdated()
   })
-  _timemachine.on('subscription:interrupt', () => {
-    console.log('SUBSCRIPTION TO EVENTS INTERRUPTED')
+  _timemachine.on('unsubscribed', () => {
+    state.subscribed = false
+    onStateUpdated()
   })
 
   function start () {
-    if (_traveling) return traveler
-    _traveling = true
-    debug(`starting to timetravel from event id ${_lastFetchedEventId}`)
-    _timemachine.start(_lastFetchedEventId)
+    if (state.travelling) return traveler
+    state.traveling = true
+    let lastFetchedEventId = state.lastFetchedEvent
+      ? state.lastFetchedEvent.id
+      : fromEventId
+    debug(`starting to timetravel from event id ${lastFetchedEventId}`)
+    _timemachine.start(lastFetchedEventId)
+    onStateUpdated()
     return traveler
   }
   function stop () {
-    if (!_traveling) return traveler
-    _traveling = false
+    if (!state.traveling) return traveler
+    state.traveling = false
     debug(`stopping timetravel`)
     _queue.stop()
     _timemachine.stop()
+    onStateUpdated()
     return traveler
   }
 
@@ -96,12 +107,13 @@ function Timetraveler (customSettings) {
   })
 }
 
-const defaultSettings = {
-  fromEvent: 0,
+Timetraveler.defaultSettings = {
+  fromEventId: '0',
   batchSize: 1000,
+  hwm: 10000,
+  lwm: 1000,
   eventStoreCredentials: grpc.credentials.createInsecure(),
-  onEvent: () => Promise.resolve(),
-  whitelistedStreams: false
+  eventHandler: () => Promise.resolve()
 }
 
 function validateSettings (settings) {

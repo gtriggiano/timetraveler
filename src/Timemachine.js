@@ -4,7 +4,6 @@ import EventEmitter from 'eventemitter3'
 function Timemachine ({
   eventStoreAddress,
   eventStoreCredentials,
-  eventsWhitelists,
   batchSize
 }) {
   let timemachine = new EventEmitter()
