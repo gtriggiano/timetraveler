@@ -1,4 +1,4 @@
-import { EventStoreProtocol } from 'grpc-event-store'
+import { getProtocol } from 'grpc-event-store'
 import EventEmitter from 'eventemitter3'
 
 function Timemachine ({
@@ -14,7 +14,7 @@ function Timemachine ({
 
   let _lastFetchedEventId = 0
 
-  let _esClient = EventStoreProtocol.EventStore(
+  let _esClient = getProtocol().EventStore(
     eventStoreAddress,
     eventStoreCredentials
   )
