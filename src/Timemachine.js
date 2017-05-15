@@ -31,7 +31,7 @@ function Timemachine ({
     _fetching = true
 
     let foundEvents = 0
-    let call = _esClient.readStoreStreamForward({
+    let call = _esClient.readStoreForward({
       fromEventId: _lastFetchedEventId,
       limit: batchSize
     })
