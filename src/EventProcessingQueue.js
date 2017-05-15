@@ -56,6 +56,7 @@ export default function EventProcessingQueue ({
   }
   function start () {
     if (_isRunning) return queue
+    _isRunning = true
     _onProcessNext()
     return queue
   }
