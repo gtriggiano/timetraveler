@@ -14,7 +14,8 @@ function Timemachine ({
 
   let _lastFetchedEventId = 0
 
-  let _esClient = getProtocol().EventStore(
+  const protocol = getProtocol()
+  let _esClient = new protocol.EventStore(
     eventStoreAddress,
     eventStoreCredentials
   )
