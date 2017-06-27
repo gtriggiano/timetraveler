@@ -12,7 +12,7 @@ function Timemachine ({
   let _fetching = false
   let _subscription = null
 
-  let _lastFetchedEventId = 0
+  let _lastFetchedEventId = '0'
 
   const protocol = getProtocol()
   let _esClient = new protocol.EventStore(
@@ -22,6 +22,7 @@ function Timemachine ({
 
   function _onEvent (event) {
     if (!_started) return
+    console.log(typeof event.id)
     _lastFetchedEventId = event.id
     timemachine.emit('event', event)
   }
