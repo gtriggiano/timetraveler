@@ -1,0 +1,253 @@
+<html lang="en">
+  <head>
+    <title>Timetraveler Dashboard</title>
+  </head>
+  <body>
+    <style>
+      @import url('https://fonts.googleapis.com/css?family=Roboto:300,400');
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        font-family: 'Roboto', sans-serif;
+      }
+
+      #dashboard {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #timemachine {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 50%;
+        background-color: rgb(30, 33, 40);
+        color: rgb(227, 229, 232);
+      }
+      #queue {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgb(111, 32, 32);
+        color: rgb(244, 217, 217);
+      }
+      #timemachine label, #queue label {
+        position: absolute;
+        top: 10px;
+        left: 0;
+        right: 0;
+
+        text-align: center;
+        font-size: 18px;
+        font-weight: 300;
+      }
+
+      #timemachine .date, #queue .date {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        left: 0;
+        right: 0;
+
+        text-align: center;
+        font-size: 60px;
+        font-weight: 400;
+      }
+
+      #travelling-status {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+      }
+
+      #travelling-status label {
+        padding: 0 10px;
+        border: 1px solid white;
+        line-height: 24px;
+        font-size: 20px;
+        text-transform: uppercase;
+        color: white;
+        background-color: rgb(255, 0, 0);
+      }
+      #travelling-status label.running {
+        background-color: rgb(54, 148, 53);
+      }
+      #travelling-status-cta {
+        cursor: pointer;
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 10px);
+        transform: translateY(-50%);
+        padding: 3px 6px;
+        background-color: rgb(54, 148, 53);
+        color: white;
+        font-size: 10px;
+      }
+      #travelling-status-cta:hover {
+        background-color: rgb(50, 136, 49);
+      }
+      #travelling-status-cta.running {
+        background-color: rgb(255, 0, 0);
+      }
+      #travelling-status-cta.running:hover {
+        background-color: rgb(223, 0, 0);
+      }
+      #live {
+        position: absolute;
+        top: 50px;
+        left: 10px;
+        padding: 0 0 0 25px;
+
+        text-transform: uppercase;
+        color: white;
+      }
+      #live span {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        left: 0;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border-radius: 50%;
+      }
+      #queue-size {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        color: rgb(233, 233, 233);
+        font-weight: 300;
+      }
+    </style>
+    <div id="dashboard">
+      <div id="timemachine">
+        <label>fetched events until</label>
+        <div id="last-fetched-date" class="date"></div>
+      </div>
+      <div id="queue">
+        <label>processed events until</label>
+        <div id="last-processed-date" class="date"></div>
+      </div>
+      <div id="travelling-status">
+        <label></label>
+        <span id="travelling-status-cta"></span>
+      </div>
+      <div id="live"><span></span>Live</div>
+      <div id="queue-size"></div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/vendor/lodash.min.js"></script>
+    <script src="/vendor/jquery-3.2.1.slim.min.js"></script>
+    <script src="https://momentjs.com/downloads/moment-with-locales.min.js"></script>
+    <script>
+      $(function () {
+        var locale = window.navigator.userLanguage || window.navigator.language
+        moment.locale(locale)
+
+        var travelerState = null
+        var lastEPEP = null
+
+        var socket = io()
+        socket.on('state', function (state) { travelerState = state; console.log(state) })
+        socket.on('eventProcessingError', function (payload) { lastEPEP = payload; console.error(payload) })
+
+        function dismissLastEPEP () { lastEPEP = null }
+
+        // UI nodes
+        var $dashboard = $('#dashboard')
+        var _firstShow = false
+        $dashboard.hide()
+        var $lastFetchedDate = $('#last-fetched-date')
+        var $lastProcessedDate = $('#last-processed-date')
+        var $travellingStatusLabel = $('#travelling-status label')
+        var $travellingCTA = $('#travelling-status-cta')
+        function toggleTravellingState () {
+          if (!travelerState) return
+          socket.emit(travelerState.travelling ? 'stopTraveler' : 'startTraveler')
+        }
+        $travellingCTA.on('click', _.throttle(toggleTravellingState, 1000))
+        var $live = $('#live')
+        $live.hide()
+        $queueSize = $('#queue-size')
+
+        var _lastFetchedDateVal = null
+        var _lastProcessedDateVal = null
+        var _travellingStatusLabelVal = null
+        var _travellingCTAVal = null
+        var _travellingModeVal = null
+        var _queueSizeVal = null
+        function render () {
+          if (!travelerState) return window.requestAnimationFrame(render)
+          if (!_firstShow) {
+            _firstShow = true
+            $dashboard.show()
+          }
+
+          var lastFetchedDate = travelerState.lastFetchedEvent &&
+            moment(travelerState.lastFetchedEvent.storedOn).format('LLLL')
+          if (lastFetchedDate !== _lastFetchedDateVal) {
+            _lastFetchedDateVal = lastFetchedDate
+            $lastFetchedDate.text(lastFetchedDate)
+          }
+
+          var lastProcessedDate = travelerState.lastProcessedEvent && moment(travelerState.lastProcessedEvent.storedOn).format('LLLL')
+          if (lastProcessedDate !== _lastProcessedDateVal) {
+            _lastProcessedDateVal = lastProcessedDate
+            $lastProcessedDate.text(lastProcessedDate)
+          }
+
+          var travellingStatusLabel = travelerState.travelling ? 'RUNNING' : 'STOPPED'
+
+          if (_travellingStatusLabelVal !== travellingStatusLabel) {
+            _travellingStatusLabelVal = travellingStatusLabel
+            $travellingStatusLabel.text(travellingStatusLabel)
+            if (travelerState.travelling) {
+              $travellingStatusLabel.addClass('running')
+            } else {
+              $travellingStatusLabel.removeClass('running')
+            }
+          }
+
+          var travellingCTA = travelerState.travelling ? 'STOP' : 'START'
+          if (_travellingCTAVal !== travellingCTA) {
+            _travellingCTAVal = travellingCTA
+            $travellingCTA.text(travellingCTA)
+            if (travelerState.travelling) {
+              $travellingCTA.addClass('running')
+            } else {
+              $travellingCTA.removeClass('running')
+            }
+          }
+
+          var travellingMode = travelerState.subscribed ? 'STREAMING' : 'REPLAY'
+          if (_travellingModeVal !== travellingMode) {
+            _travellingModeVal = travellingMode
+            if (travelerState.subscribed) {
+              $live.show()
+            } else {
+              $live.hide()
+            }
+          }
+
+          if (_queueSizeVal !== travelerState.queueSize) {
+            _queueSizeVal = travelerState.queueSize
+            $queueSize.text(travelerState.queueSize + ' events in queue')
+          }
+
+          window.requestAnimationFrame(render)
+        }
+        window.requestAnimationFrame(render)
+      })
+    </script>
+  </body>
+</html>
