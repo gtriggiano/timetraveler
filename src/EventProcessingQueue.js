@@ -16,7 +16,10 @@ export default function EventProcessingQueue ({
     if (!_isRunning) return
 
     let event = _events.first()
-    if (!event) return
+    if (!event) {
+      _isRunning = false
+      return
+    }
 
     const jsEvent = event.toJS()
 
@@ -33,6 +36,7 @@ export default function EventProcessingQueue ({
         _onProcessNext()
       })
       .catch((error) => {
+        console.log(error)
         queue.emit('processing:error', jsEvent, error)
         setTimeout(() => {
           _onProcessNext()
@@ -44,7 +48,7 @@ export default function EventProcessingQueue ({
     let wasOverLWM = _events.size >= lwm
     let wasBelowHWM = _events.size < hwm
 
-    _events.push(fromJS(event))
+    _events = _events.push(fromJS(event))
 
     let isBelowLWM = queue.size < lwm
     let isOverHWM = _events.size >= hwm
