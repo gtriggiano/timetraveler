@@ -25,9 +25,12 @@
   "dependencies": {
     "debug": "^2.6.0",
     "eventemitter3": "^2.0.2",
+    "express": "^4.15.3",
     "grpc": "1.0.1",
     "grpc-event-store": "gtriggiano/grpc-event-store#d95aa1a",
-    "immutable": "^3.8.1"
+    "immutable": "^3.8.1",
+    "moment": "^2.18.1",
+    "socket.io": "^2.0.3"
   },
   "devDependencies": {
     "babel-cli": "^6.24.0",
