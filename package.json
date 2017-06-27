@@ -26,7 +26,7 @@
     "debug": "^2.6.0",
     "eventemitter3": "^2.0.2",
     "grpc": "1.0.1",
-    "grpc-event-store": "gtriggiano/grpc-event-store#b64f4ac",
+    "grpc-event-store": "gtriggiano/grpc-event-store#d95aa1a",
     "immutable": "^3.8.1"
   },
   "devDependencies": {
