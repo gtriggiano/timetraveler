@@ -2,7 +2,6 @@ import D from 'debug'
 import grpc from 'grpc'
 import EventEmitter from 'eventemitter3'
 import {
-  first,
   pick,
   throttle
 } from 'lodash'
@@ -57,25 +56,12 @@ function Timetraveler (customSettings) {
   const _queue = EventProcessingQueue({lwm, hwm, eventHandler})
 
   /**
-   * The internals timed snapshots of the states of the traveler
-   * @type {Array}
-   */
-  const statesTimeserie = []
-
-  /**
    * When invoked the traveler emits it state
    * and stores a timed snapshot of it
    * @return {[type]} [description]
    */
   const broadcastState = throttle(() => {
-    let actualState = {...state, queueSize: _queue.size}
-    statesTimeserie.push({
-      t: new Date(),
-      qs: actualState.queueSize,
-      tr: actualState.travelling,
-      ss: actualState.subscribed
-    })
-    traveler.emit('state', actualState)
+    traveler.emit('state', {...state, queueSize: _queue.size})
   }, 400, {leading: true, trailing: true})
 
   _queue.on('processed:event', event => {
@@ -87,15 +73,11 @@ function Timetraveler (customSettings) {
     traveler.emit('eventProcessingError', event, error)
   })
   _queue.on('hwm', () => {
-    console.log()
-    console.log(`${new Date()} Timetraveler QUEUE HIGH WATER MARK REACHED`)
-    console.log()
+    debug(`Timetraveler QUEUE HIGH WATER MARK REACHED`)
     if (state.travelling) _timemachine.stop()
   })
   _queue.on('lwm', () => {
-    console.log()
-    console.log(`${new Date()} Timetraveler QUEUE LOW WATER MARK REACHED`)
-    console.log()
+    debug(`Timetraveler QUEUE LOW WATER MARK REACHED`)
     let lastFetchedEventId = state.lastFetchedEvent
       ? state.lastFetchedEvent.id
       : fromEventId
@@ -137,7 +119,7 @@ function Timetraveler (customSettings) {
     let lastFetchedEventId = state.lastFetchedEvent
       ? state.lastFetchedEvent.id
       : fromEventId
-    debug(`starting timetravel from event id ${lastFetchedEventId}`)
+    debug(`Starting timetravel from event id ${lastFetchedEventId}`)
     _timemachine.start(lastFetchedEventId)
     broadcastState()
     return traveler
@@ -153,7 +135,7 @@ function Timetraveler (customSettings) {
   const stop = () => {
     if (!state.travelling) return traveler
     state.travelling = false
-    debug(`stopping timetravel`)
+    debug(`Stopping timetravel`)
     _queue.stop()
     _timemachine.stop()
     broadcastState()
@@ -170,13 +152,6 @@ function Timetraveler (customSettings) {
     start: {value: start},
     stop: {value: stop},
     state: {get: () => ({...state, queueSize: _queue.size})},
-    startedOn: {get: () => {
-      let firstState = first(statesTimeserie)
-      return (firstState && firstState.t) || null
-    }},
-    getStatesInDateRange: {
-      value: (from, to) => statesTimeserie.filter(({t}) => t >= from && t <= to).map(i => ({...i}))
-    },
     ui: {get: () => {
       if (!dashboardApp) {
         dashboardApp = require('./Dashboard').default(traveler)

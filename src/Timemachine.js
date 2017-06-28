@@ -22,7 +22,6 @@ function Timemachine ({
 
   function _onEvent (event) {
     if (!_started) return
-    console.log(typeof event.id)
     _lastFetchedEventId = event.id
     timemachine.emit('event', event)
   }
@@ -43,11 +42,14 @@ function Timemachine ({
     call.on('end', () => {
       _fetching = false
       if (foundEvents < batchSize) {
-        timemachine.emit('subscribed')
         _subscribe()
       } else {
         _fetchEvents()
       }
+    })
+    call.on('error', () => {
+      _fetching = false
+      setTimeout(() => _fetchEvents(), 1000)
     })
   }
   function _subscribe () {
@@ -60,6 +62,7 @@ function Timemachine ({
     _subscription.write({
       fromEventId: _lastFetchedEventId
     })
+    timemachine.emit('subscribed')
   }
   function _onSubscriptionInterruption () {
     if (_subscription) {
